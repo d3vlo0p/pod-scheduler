@@ -3,10 +3,7 @@ automates the number of replicas of pods
 
 Schedule CRD
 + selector labels
-+ scale in
-  + cron
-  + replicas
-+ scale out
++ scale: []
   + cron
   + replicas
 

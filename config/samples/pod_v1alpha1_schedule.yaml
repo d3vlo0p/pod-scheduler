@@ -1,0 +1,12 @@
+apiVersion: pod.loop.dev/v1alpha1
+kind: Schedule
+metadata:
+  labels:
+    app.kubernetes.io/name: schedule
+    app.kubernetes.io/instance: schedule-sample
+    app.kubernetes.io/part-of: pod-scheduler
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: pod-scheduler
+  name: schedule-sample
+spec:
+  # TODO(user): Add fields here

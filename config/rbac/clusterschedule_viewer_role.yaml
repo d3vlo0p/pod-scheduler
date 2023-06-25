@@ -1,0 +1,27 @@
+# permissions for end users to view clusterschedules.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: clusterschedule-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: pod-scheduler
+    app.kubernetes.io/part-of: pod-scheduler
+    app.kubernetes.io/managed-by: kustomize
+  name: clusterschedule-viewer-role
+rules:
+- apiGroups:
+  - pod.loop.dev
+  resources:
+  - clusterschedules
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - pod.loop.dev
+  resources:
+  - clusterschedules/status
+  verbs:
+  - get

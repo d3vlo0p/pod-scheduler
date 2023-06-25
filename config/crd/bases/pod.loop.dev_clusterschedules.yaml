@@ -1,0 +1,89 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.1
+  creationTimestamp: null
+  name: clusterschedules.pod.loop.dev
+spec:
+  group: pod.loop.dev
+  names:
+    kind: ClusterSchedule
+    listKind: ClusterScheduleList
+    plural: clusterschedules
+    singular: clusterschedule
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ClusterSchedule is the Schema for the clusterschedules API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ClusterScheduleSpec defines the desired state of ClusterSchedule
+            properties:
+              matchLabels:
+                additionalProperties:
+                  type: string
+                description: Foo is an example field of ClusterSchedule. Edit clusterschedule_types.go
+                  to remove/update
+                type: object
+              schedules:
+                items:
+                  properties:
+                    cron:
+                      type: string
+                    name:
+                      type: string
+                    replicas:
+                      type: integer
+                  required:
+                  - cron
+                  - name
+                  - replicas
+                  type: object
+                type: array
+            required:
+            - matchLabels
+            - schedules
+            type: object
+          status:
+            description: ClusterScheduleStatus defines the observed state of ClusterSchedule
+            properties:
+              cronJobs:
+                items:
+                  properties:
+                    name:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+              lastRunTime:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file'
+                format: date-time
+                type: string
+            required:
+            - cronJobs
+            - lastRunTime
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

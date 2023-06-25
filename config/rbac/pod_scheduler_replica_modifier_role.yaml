@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: role
+    app.kubernetes.io/instance: replica-modifier-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: pod-scheduler
+    app.kubernetes.io/part-of: pod-scheduler
+    app.kubernetes.io/managed-by: kustomize
+  name: pod-scheduler-replica-modifier-role
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale", "statefulsets/scale"]
+    verbs: ["patch"]

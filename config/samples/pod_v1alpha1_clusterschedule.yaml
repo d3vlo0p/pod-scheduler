@@ -1,0 +1,12 @@
+apiVersion: pod.loop.dev/v1alpha1
+kind: ClusterSchedule
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterschedule
+    app.kubernetes.io/instance: clusterschedule-sample
+    app.kubernetes.io/part-of: pod-scheduler
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: pod-scheduler
+  name: clusterschedule-sample
+spec:
+  # TODO(user): Add fields here

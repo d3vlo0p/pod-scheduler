@@ -1,0 +1,59 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - pod.loop.dev
+  resources:
+  - clusterschedules
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - pod.loop.dev
+  resources:
+  - clusterschedules/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - pod.loop.dev
+  resources:
+  - clusterschedules/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - pod.loop.dev
+  resources:
+  - schedules
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - pod.loop.dev
+  resources:
+  - schedules/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - pod.loop.dev
+  resources:
+  - schedules/status
+  verbs:
+  - get
+  - patch
+  - update

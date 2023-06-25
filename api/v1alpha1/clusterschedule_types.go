@@ -23,18 +23,18 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// ScheduleSpec defines the desired state of Schedule
-type ScheduleSpec struct {
+// ClusterScheduleSpec defines the desired state of ClusterSchedule
+type ClusterScheduleSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Schedule. Edit schedule_types.go to remove/update
+	// Foo is an example field of ClusterSchedule. Edit clusterschedule_types.go to remove/update
 	MatchLabels map[string]string `json:"matchLabels"`
 	Schedules   []ScheduleAction  `json:"schedules"`
 }
 
-// ScheduleStatus defines the observed state of Schedule
-type ScheduleStatus struct {
+// ClusterScheduleStatus defines the observed state of ClusterSchedule
+type ClusterScheduleStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	LastRunTime metav1.Time `json:"lastRunTime"`
@@ -43,25 +43,26 @@ type ScheduleStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:scope=Cluster
 
-// Schedule is the Schema for the schedules API
-type Schedule struct {
+// ClusterSchedule is the Schema for the clusterschedules API
+type ClusterSchedule struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ScheduleSpec   `json:"spec,omitempty"`
-	Status ScheduleStatus `json:"status,omitempty"`
+	Spec   ClusterScheduleSpec   `json:"spec,omitempty"`
+	Status ClusterScheduleStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// ScheduleList contains a list of Schedule
-type ScheduleList struct {
+// ClusterScheduleList contains a list of ClusterSchedule
+type ClusterScheduleList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Schedule `json:"items"`
+	Items           []ClusterSchedule `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Schedule{}, &ScheduleList{})
+	SchemeBuilder.Register(&ClusterSchedule{}, &ClusterScheduleList{})
 }

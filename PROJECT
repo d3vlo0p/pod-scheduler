@@ -20,4 +20,12 @@ resources:
   kind: Schedule
   path: github.com/d3vlo0p/pod-scheduler/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+  controller: true
+  domain: loop.dev
+  group: pod
+  kind: ClusterSchedule
+  path: github.com/d3vlo0p/pod-scheduler/api/v1alpha1
+  version: v1alpha1
 version: "3"

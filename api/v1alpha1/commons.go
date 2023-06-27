@@ -9,3 +9,14 @@ type ScheduleAction struct {
 type CronJob struct {
 	Name string `json:"name"`
 }
+
+type ResourceType string
+
+const (
+	Deployment  ResourceType = "Deployment"
+	StatefulSet ResourceType = "StatefulSet"
+)
+
+func (r ResourceType) String() string {
+	return string(r)
+}

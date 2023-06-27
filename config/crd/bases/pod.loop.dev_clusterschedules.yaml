@@ -38,9 +38,11 @@ spec:
               matchLabels:
                 additionalProperties:
                   type: string
+                type: object
+              matchType:
                 description: Foo is an example field of ClusterSchedule. Edit clusterschedule_types.go
                   to remove/update
-                type: object
+                type: string
               schedules:
                 items:
                   properties:
@@ -58,6 +60,7 @@ spec:
                 type: array
             required:
             - matchLabels
+            - matchType
             - schedules
             type: object
           status:

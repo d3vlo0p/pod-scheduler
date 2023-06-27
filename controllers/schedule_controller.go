@@ -129,7 +129,11 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		cj, ok := oldResouces[jobName]
 		if !ok {
 			// create a new cronjob and add name to status
-			newCj = r.cronJobForSchedule(instance, scheduleAction, serviceAccount)
+			newCj, err = r.cronJobForSchedule(instance, scheduleAction, serviceAccount)
+			if err != nil {
+				logger.Info("Failed to generate Schedule CronJob. Re-running reconcile.")
+				return ctrl.Result{}, err
+			}
 			err = r.Create(ctx, newCj)
 			if err != nil {
 				logger.Info("Failed to create Schedule CronJob. Re-running reconcile.")
@@ -140,14 +144,19 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			delete(oldResouces, jobName)
 			if cj.Spec.Schedule != scheduleAction.Cron ||
 				cj.Annotations["pod-scheduler.loop.dev/replicas"] != strconv.Itoa(scheduleAction.Replicas) ||
-				cj.Annotations["pod-scheduler.loop.dev/labelSelectors"] != ConvertMapToString(instance.Spec.MatchLabels) {
+				cj.Annotations["pod-scheduler.loop.dev/labelSelectors"] != ConvertMapToString(instance.Spec.MatchLabels) ||
+				cj.Annotations["pod-scheduler.loop.dev/resource"] != instance.Spec.MatchType.String() {
 				// configuration changed, replace cronjob
 				err := r.Delete(ctx, cj, &client.DeleteOptions{})
 				if err != nil {
 					logger.Info("Failed to delete Schedule cronjob")
 					return ctrl.Result{}, err
 				}
-				newCj = r.cronJobForSchedule(instance, scheduleAction, serviceAccount)
+				newCj, err = r.cronJobForSchedule(instance, scheduleAction, serviceAccount)
+				if err != nil {
+					logger.Info("Failed to generate Schedule CronJob. Re-running reconcile.")
+					return ctrl.Result{}, err
+				}
 				err = r.Create(ctx, newCj)
 				if err != nil {
 					logger.Info("Failed to create Schedule CronJob. Re-running reconcile.")
@@ -215,8 +224,26 @@ func (r *ScheduleReconciler) roleBindingForSchedule(schedule *podv1alpha1.Schedu
 	return rb
 }
 
-func (r *ScheduleReconciler) cronJobForSchedule(schedule *podv1alpha1.Schedule, action podv1alpha1.ScheduleAction, serviceAccount *corev1.ServiceAccount) *batchv1.CronJob {
+func (r *ScheduleReconciler) cronJobForSchedule(schedule *podv1alpha1.Schedule, action podv1alpha1.ScheduleAction, serviceAccount *corev1.ServiceAccount) (*batchv1.CronJob, error) {
 	jobName := GetCronJobName(schedule.Name, action.Name)
+
+	var container corev1.Container
+	if schedule.Spec.MatchType == podv1alpha1.Deployment {
+		container = corev1.Container{
+			Name:  "pod-scheduler-deployment",
+			Image: r.JobImage,
+			Args:  GenerateArgs("deployment", schedule.Spec.MatchLabels, action.Replicas, false),
+		}
+	} else if schedule.Spec.MatchType == podv1alpha1.StatefulSet {
+		container = corev1.Container{
+			Name:  "pod-scheduler-statefulset",
+			Image: r.JobImage,
+			Args:  GenerateArgs("statefulset", schedule.Spec.MatchLabels, action.Replicas, false),
+		}
+	} else {
+		return nil, fmt.Errorf("match type not supported")
+	}
+
 	job := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -224,6 +251,7 @@ func (r *ScheduleReconciler) cronJobForSchedule(schedule *podv1alpha1.Schedule, 
 			Annotations: map[string]string{
 				"pod-scheduler.loop.dev/replicas":       strconv.Itoa(action.Replicas),
 				"pod-scheduler.loop.dev/labelSelectors": ConvertMapToString(schedule.Spec.MatchLabels),
+				"pod-scheduler.loop.dev/resource":       schedule.Spec.MatchType.String(),
 			},
 		},
 		Spec: batchv1.CronJobSpec{
@@ -242,16 +270,7 @@ func (r *ScheduleReconciler) cronJobForSchedule(schedule *podv1alpha1.Schedule, 
 							RestartPolicy:      corev1.RestartPolicyNever,
 							ServiceAccountName: serviceAccount.Name,
 							Containers: []corev1.Container{
-								{
-									Name:  "pod-scheduler-deployment",
-									Image: r.JobImage,
-									Args:  GenerateArgs("deployment", schedule.Spec.MatchLabels, action.Replicas, false),
-								},
-								{
-									Name:  "pod-scheduler-statefulset",
-									Image: r.JobImage,
-									Args:  GenerateArgs("statefulset", schedule.Spec.MatchLabels, action.Replicas, false),
-								},
+								container,
 							},
 						},
 					},
@@ -260,5 +279,5 @@ func (r *ScheduleReconciler) cronJobForSchedule(schedule *podv1alpha1.Schedule, 
 		},
 	}
 	controllerutil.SetControllerReference(schedule, job, r.Scheme)
-	return job
+	return job, nil
 }

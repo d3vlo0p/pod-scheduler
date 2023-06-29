@@ -25,3 +25,13 @@ spec:
       name: prova-scale-out
       replicas: 5
 ```
+
+
+## Installation
+```bash
+# installing CRDs
+kubectl apply -f https://raw.githubusercontent.com/d3vlo0p/pod-scheduler/main/config/crd/bases/pod.loop.dev_schedules.yaml
+
+# installing operator with helm
+helm install my-scheduler oci://ghcr.io/d3vlo0p/pod-scheduler-operator
+```

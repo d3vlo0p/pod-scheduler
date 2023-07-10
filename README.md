@@ -10,7 +10,6 @@ metadata:
     app.kubernetes.io/name: schedule
     app.kubernetes.io/instance: schedule-sample
     app.kubernetes.io/part-of: pod-scheduler
-    app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: pod-scheduler
   name: schedule-sample
 spec:

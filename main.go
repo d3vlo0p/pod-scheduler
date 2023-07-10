@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"text/template"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -191,11 +192,18 @@ func main() {
 	// 	os.Exit(1)
 	// }
 
+	templates, err := template.ParseGlob("./resources/*.sh")
+	if err != nil {
+		setupLog.Error(err, "unable to start manager, missing templates")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.ScheduleReconciler{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		JobImage:        jobImage,
 		ClusterRoleName: clusterRoleName,
+		Templates:       templates,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Schedule")
 		os.Exit(1)

@@ -69,9 +69,15 @@ spec:
               cronJobs:
                 items:
                   properties:
+                    configMap:
+                      type: string
+                    job:
+                      type: string
                     name:
                       type: string
                   required:
+                  - configMap
+                  - job
                   - name
                   type: object
                 type: array

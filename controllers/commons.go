@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-func GetCronJobName(scheduleName string, actionName string) string {
-	return fmt.Sprintf("%s-%s", scheduleName, actionName)
+func GetScheduleActionName(scheduleName string, actionName string) string {
+	return strings.ToLower(fmt.Sprintf("%s-%s", scheduleName, actionName))
 }
 
 func ConvertMapToString(m map[string]string) string {

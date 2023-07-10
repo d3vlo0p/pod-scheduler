@@ -7,7 +7,9 @@ type ScheduleAction struct {
 }
 
 type CronJob struct {
-	Name string `json:"name"`
+	Name      string `json:"name"`
+	Job       string `json:"job"`
+	ConfigMap string `json:"configMap"`
 }
 
 type ResourceType string
@@ -15,6 +17,7 @@ type ResourceType string
 const (
 	Deployment  ResourceType = "Deployment"
 	StatefulSet ResourceType = "StatefulSet"
+	// HorizontalPodAutoscaler ResourceType = "HorizontalPodAutoscaler"
 )
 
 func (r ResourceType) String() string {

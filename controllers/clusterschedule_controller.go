@@ -94,7 +94,7 @@ func (r *ClusterScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// if not create a new one or modify the existing one
 	for _, scheduleAction := range instance.Spec.Schedules {
 		var newCj *batchv1.CronJob
-		jobName := GetCronJobName(instance.Name, scheduleAction.Name)
+		jobName := GetScheduleActionName(instance.Name, scheduleAction.Name)
 		cj, ok := oldResouces[jobName]
 		if !ok {
 			// create a new cronjob and add name to status
@@ -160,7 +160,7 @@ func (r *ClusterScheduleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ClusterScheduleReconciler) cronJobForSchedule(schedule *podv1alpha1.ClusterSchedule, action podv1alpha1.ScheduleAction) (*batchv1.CronJob, error) {
-	jobName := GetCronJobName(schedule.Name, action.Name)
+	jobName := GetScheduleActionName(schedule.Name, action.Name)
 
 	var container corev1.Container
 	if schedule.Spec.MatchType == podv1alpha1.Deployment {

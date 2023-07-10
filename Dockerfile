@@ -15,7 +15,6 @@ RUN go mod download
 COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
-COPY resources/ resources/
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command
@@ -29,6 +28,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/manager .
+COPY resources/ resources/
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

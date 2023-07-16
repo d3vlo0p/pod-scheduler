@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strconv"
 	"text/template"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -166,7 +165,7 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			// cronjob exist, remove the cronjob from the map to check later if there are job left to remove
 			delete(oldResouces, jobName)
 			if cmcj.cronjob.Spec.Schedule != scheduleAction.Cron ||
-				cmcj.configmap.Annotations["pod-scheduler.loop.dev/replicas"] != strconv.Itoa(scheduleAction.Replicas) ||
+				cmcj.configmap.Annotations["pod-scheduler.loop.dev/replicas"] != ReplicasForLabels(scheduleAction) ||
 				cmcj.configmap.Annotations["pod-scheduler.loop.dev/labelSelectors"] != ConvertMapToString(instance.Spec.MatchLabels) ||
 				cmcj.configmap.Annotations["pod-scheduler.loop.dev/resource"] != instance.Spec.MatchType.String() {
 				// configuration changed, replace cronjob & config map
@@ -317,7 +316,7 @@ func (r *ScheduleReconciler) configMapForSchedule(schedule *podv1alpha1.Schedule
 			Name:      GetScheduleActionName(data.Schedule.Name, data.Action.Name),
 			Namespace: data.Schedule.Namespace,
 			Annotations: map[string]string{
-				"pod-scheduler.loop.dev/replicas":       strconv.Itoa(data.Action.Replicas),
+				"pod-scheduler.loop.dev/replicas":       ReplicasForLabels(data.Action),
 				"pod-scheduler.loop.dev/labelSelectors": ConvertMapToString(data.Schedule.Spec.MatchLabels),
 				"pod-scheduler.loop.dev/resource":       data.Schedule.Spec.MatchType.String(),
 			},

@@ -3,6 +3,8 @@ package controllers
 import (
 	"fmt"
 	"strings"
+
+	podv1alpha1 "github.com/d3vlo0p/pod-scheduler/api/v1alpha1"
 )
 
 func GetScheduleActionName(scheduleName string, actionName string) string {
@@ -30,4 +32,8 @@ func GenerateArgs(resourceType string, labels map[string]string, replicas int, g
 
 func GenerateLabelsForApp(name string) map[string]string {
 	return map[string]string{"cr_name": name, "app": "pod-scheduler", "cr_type": "schedule"}
+}
+
+func ReplicasForLabels(scheduleAction podv1alpha1.ScheduleAction) string {
+	return fmt.Sprintf("%d-%d-%d", scheduleAction.Replicas, scheduleAction.MinReplicas, scheduleAction.MaxReplicas)
 }

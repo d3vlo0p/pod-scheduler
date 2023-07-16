@@ -43,11 +43,19 @@ spec:
                 description: Foo is an example field of ClusterSchedule. Edit clusterschedule_types.go
                   to remove/update
                 type: string
+              namespaces:
+                items:
+                  type: string
+                type: array
               schedules:
                 items:
                   properties:
                     cron:
                       type: string
+                    maxReplicas:
+                      type: integer
+                    minReplicas:
+                      type: integer
                     name:
                       type: string
                     replicas:
@@ -55,12 +63,12 @@ spec:
                   required:
                   - cron
                   - name
-                  - replicas
                   type: object
                 type: array
             required:
             - matchLabels
             - matchType
+            - namespaces
             - schedules
             type: object
           status:

@@ -31,6 +31,7 @@ type ClusterScheduleSpec struct {
 	// Foo is an example field of ClusterSchedule. Edit clusterschedule_types.go to remove/update
 	MatchType   ResourceType      `json:"matchType"`
 	MatchLabels map[string]string `json:"matchLabels"`
+	Namespaces  []string          `json:"namespaces"`
 	Schedules   []ScheduleAction  `json:"schedules"`
 }
 

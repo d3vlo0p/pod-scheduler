@@ -48,6 +48,10 @@ spec:
                   properties:
                     cron:
                       type: string
+                    maxReplicas:
+                      type: integer
+                    minReplicas:
+                      type: integer
                     name:
                       type: string
                     replicas:
@@ -55,7 +59,6 @@ spec:
                   required:
                   - cron
                   - name
-                  - replicas
                   type: object
                 type: array
             required:

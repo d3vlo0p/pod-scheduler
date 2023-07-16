@@ -303,6 +303,11 @@ func (r *ScheduleReconciler) configMapForSchedule(schedule *podv1alpha1.Schedule
 		if err != nil {
 			return nil, err
 		}
+	} else if data.Schedule.Spec.MatchType == podv1alpha1.HorizontalPodAutoscaler {
+		err := r.Templates.ExecuteTemplate(buf, "hpa.sh", data)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, fmt.Errorf("match type not supported")
 	}

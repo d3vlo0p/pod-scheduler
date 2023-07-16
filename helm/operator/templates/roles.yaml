@@ -139,6 +139,16 @@ rules:
     - "get"
     - "list"
     - "watch"
+- apiGroups:
+    - "autoscaling"
+  resources:
+    - "horizontalpodautoscalers"
+  verbs:
+    - "get"
+    - "list"
+    - "watch"
+    - "update"
+    - "patch"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -147,29 +157,39 @@ metadata:
   labels:
     {{- include "operator.labels" . | nindent 4 }}
 rules:
-  - apiGroups:
-      - "apps"
-    resources:
-      - "deployments"
-      - "statefulsets"
-    verbs:
-      - "get"
-      - "list"
-      - "watch"
-      - "update"
-      - "patch"
-  - apiGroups:
-      - "apps"
-    resources:
-      - "deployments/scale"
-      - "statefulsets/scale"
-    verbs:
-      - "patch"
-  - apiGroups:
-      - ""
-    resources:
-      - "pods"
-    verbs:
-      - "get"
-      - "list"
-      - "watch"
+- apiGroups:
+    - "apps"
+  resources:
+    - "deployments"
+    - "statefulsets"
+  verbs:
+    - "get"
+    - "list"
+    - "watch"
+    - "update"
+    - "patch"
+- apiGroups:
+    - "apps"
+  resources:
+    - "deployments/scale"
+    - "statefulsets/scale"
+  verbs:
+    - "patch"
+- apiGroups:
+    - ""
+  resources:
+    - "pods"
+  verbs:
+    - "get"
+    - "list"
+    - "watch"
+- apiGroups:
+    - "autoscaling"
+  resources:
+    - "horizontalpodautoscalers"
+  verbs:
+    - "get"
+    - "list"
+    - "watch"
+    - "update"
+    - "patch"

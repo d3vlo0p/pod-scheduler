@@ -94,6 +94,11 @@ func (in *ClusterScheduleSpec) DeepCopyInto(out *ClusterScheduleSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.Namespaces != nil {
+		in, out := &in.Namespaces, &out.Namespaces
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.Schedules != nil {
 		in, out := &in.Schedules, &out.Schedules
 		*out = make([]ScheduleAction, len(*in))

@@ -17,9 +17,11 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"strconv"
+	"strings"
+	"text/template"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +43,7 @@ type ClusterScheduleReconciler struct {
 	JobImage       string
 	ServiceAccount string
 	Namespace      string
+	Templates      *template.Template
 }
 
 //+kubebuilder:rbac:groups=pod.loop.dev,resources=clusterschedules,verbs=get;list;watch;create;update;patch;delete
@@ -73,19 +76,39 @@ func (r *ClusterScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	// find cronJobs managed by this resource
-	oldResouces := map[string]*batchv1.CronJob{}
-	for _, cj := range instance.Status.CronJobs {
+	oldResouces := map[string]ScheduleResources{}
+	for _, cmcj := range instance.Status.CronJobs {
+		resource := ScheduleResources{}
+
 		cronJob := &batchv1.CronJob{}
-		err = r.Get(ctx, client.ObjectKey{Name: cj.Name, Namespace: r.Namespace}, cronJob)
-		if err != nil {
-			if !errors.IsNotFound(err) {
+		err1 := r.Get(ctx, client.ObjectKey{Name: cmcj.Job, Namespace: r.Namespace}, cronJob)
+		if err1 != nil {
+			if !errors.IsNotFound(err1) {
 				logger.Info("Failed to get cronjob. Re-running reconcile.")
-				return ctrl.Result{}, err
+				return ctrl.Result{}, err1
 			}
-			logger.Info(fmt.Sprintf("cronjob %s/%s not found", cj.Name, req.Namespace))
+			logger.Info(fmt.Sprintf("cronjob %s/%s not found", cmcj.Job, r.Namespace))
 		} else {
+			logger.Info(fmt.Sprintf("cronjob %s/%s found", cmcj.Job, r.Namespace))
+			resource.cronjob = cronJob
+		}
+
+		configMap := &corev1.ConfigMap{}
+		err2 := r.Get(ctx, client.ObjectKey{Name: cmcj.ConfigMap, Namespace: r.Namespace}, configMap)
+		if err2 != nil {
+			if !errors.IsNotFound(err2) {
+				logger.Info("Failed to get configMap. Re-running reconcile.")
+				return ctrl.Result{}, err1
+			}
+			logger.Info(fmt.Sprintf("configMap %s/%s not found", cmcj.ConfigMap, r.Namespace))
+		} else {
+			logger.Info(fmt.Sprintf("configMap %s/%s found", cmcj.ConfigMap, r.Namespace))
+			resource.configmap = configMap
+		}
+
+		if err1 == nil && err2 == nil {
 			// managed resource do exist
-			oldResouces[cj.Name] = cronJob
+			oldResouces[cmcj.Name] = resource
 		}
 	}
 
@@ -93,17 +116,12 @@ func (r *ClusterScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// verify if the cronjobs are matching the schedule spec.
 	// if not create a new one or modify the existing one
 	for _, scheduleAction := range instance.Spec.Schedules {
-		var newCj *batchv1.CronJob
+		var resource ScheduleResources
 		jobName := GetScheduleActionName(instance.Name, scheduleAction.Name)
-		cj, ok := oldResouces[jobName]
+		cmcj, ok := oldResouces[jobName]
 		if !ok {
-			// create a new cronjob and add name to status
-			newCj, err = r.cronJobForSchedule(instance, scheduleAction)
-			if err != nil {
-				logger.Info("Failed to generate Schedule CronJob. Re-running reconcile.")
-				return ctrl.Result{}, err
-			}
-			err = r.Create(ctx, newCj)
+			logger.Info("New Schedule action found, creating new cronjob & config map")
+			resource, err = r.createCronJob(ctx, instance, scheduleAction)
 			if err != nil {
 				logger.Info("Failed to create Schedule CronJob. Re-running reconcile.")
 				return ctrl.Result{}, err
@@ -111,36 +129,49 @@ func (r *ClusterScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		} else {
 			// cronjob exist, remove the cronjob from the map to check later if there are job left to remove
 			delete(oldResouces, jobName)
-			if cj.Spec.Schedule != scheduleAction.Cron ||
-				cj.Annotations["pod-scheduler.loop.dev/replicas"] != strconv.Itoa(scheduleAction.Replicas) ||
-				cj.Annotations["pod-scheduler.loop.dev/labelSelectors"] != ConvertMapToString(instance.Spec.MatchLabels) ||
-				cj.Annotations["pod-scheduler.loop.dev/resource"] != instance.Spec.MatchType.String() {
-				// configuration changed, replace cronjob
-				err := r.Delete(ctx, cj, &client.DeleteOptions{})
+			if cmcj.cronjob.Spec.Schedule != scheduleAction.Cron ||
+				cmcj.configmap.Annotations["pod-scheduler.loop.dev/replicas"] != ReplicasForLabels(scheduleAction) ||
+				cmcj.configmap.Annotations["pod-scheduler.loop.dev/labelSelectors"] != ConvertMapToString(instance.Spec.MatchLabels) ||
+				cmcj.configmap.Annotations["pod-scheduler.loop.dev/resource"] != instance.Spec.MatchType.String() ||
+				cmcj.configmap.Annotations["pod-scheduler.loop.dev/namespaces"] != strings.Join(instance.Spec.Namespaces, ",") { // configuration changed, replace cronjob & config map
+				logger.Info("Diff found, replacing cronjob & config map")
+				err := r.Delete(ctx, cmcj.cronjob, &client.DeleteOptions{})
 				if err != nil {
-					logger.Info("Failed to delete cronjob")
+					logger.Info("Failed to delete Schedule cronjob")
 					return ctrl.Result{}, err
 				}
-				newCj, err = r.cronJobForSchedule(instance, scheduleAction)
+				err = r.Delete(ctx, cmcj.configmap, &client.DeleteOptions{})
 				if err != nil {
-					logger.Info("Failed to generate Schedule CronJob. Re-running reconcile.")
+					logger.Info("Failed to delete Schedule cronjob configmap")
 					return ctrl.Result{}, err
 				}
-				err = r.Create(ctx, newCj)
+				resource, err = r.createCronJob(ctx, instance, scheduleAction)
 				if err != nil {
 					logger.Info("Failed to create Schedule CronJob. Re-running reconcile.")
 					return ctrl.Result{}, err
 				}
+			} else {
+				logger.Info("No diff found, keeping existing cronjob & config map")
+				resource = cmcj
 			}
 		}
-		instance.Status.CronJobs = append(instance.Status.CronJobs, podv1alpha1.CronJob{Name: jobName})
+		instance.Status.CronJobs = append(instance.Status.CronJobs, podv1alpha1.CronJob{
+			Name:      jobName,
+			Job:       resource.cronjob.Name,
+			ConfigMap: resource.configmap.Name,
+		})
 	}
 
 	// check if some action has been removed from the schedule spec, but cronjob is still active then remove it
-	for _, cj := range oldResouces {
-		err := r.Delete(ctx, cj, &client.DeleteOptions{})
+	for _, cmcj := range oldResouces {
+		err := r.Delete(ctx, cmcj.cronjob, &client.DeleteOptions{})
 		if err != nil {
 			logger.Info("Failed to delete cronjob")
+			return ctrl.Result{}, err
+		}
+		err = r.Delete(ctx, cmcj.configmap, &client.DeleteOptions{})
+		if err != nil {
+			logger.Info("Failed to delete configmap")
 			return ctrl.Result{}, err
 		}
 	}
@@ -159,35 +190,78 @@ func (r *ClusterScheduleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *ClusterScheduleReconciler) cronJobForSchedule(schedule *podv1alpha1.ClusterSchedule, action podv1alpha1.ScheduleAction) (*batchv1.CronJob, error) {
-	jobName := GetScheduleActionName(schedule.Name, action.Name)
+func (r *ClusterScheduleReconciler) createCronJob(ctx context.Context, schedule *podv1alpha1.ClusterSchedule, action podv1alpha1.ScheduleAction) (ScheduleResources, error) {
+	cm, err := r.configMapForSchedule(schedule, action)
+	if err != nil {
+		return ScheduleResources{}, fmt.Errorf("failed to generate Schedule ConfigMap: %w", err)
+	}
+	err = r.Create(ctx, cm)
+	if err != nil {
+		return ScheduleResources{}, fmt.Errorf("failed to create Schedule ConfigMap: %w", err)
+	}
+	cj, err := r.cronJobForSchedule(schedule, action, cm)
+	if err != nil {
+		return ScheduleResources{}, fmt.Errorf("failed to generate Schedule CronJob: %w", err)
+	}
+	err = r.Create(ctx, cj)
+	if err != nil {
+		return ScheduleResources{}, fmt.Errorf("failed to create Schedule CronJob: %w", err)
+	}
+	return ScheduleResources{
+		cronjob:   cj,
+		configmap: cm,
+	}, nil
+}
 
-	var container corev1.Container
-	if schedule.Spec.MatchType == podv1alpha1.Deployment {
-		container = corev1.Container{
-			Name:  "pod-scheduler-deployment",
-			Image: r.JobImage,
-			Args:  GenerateArgs("deployment", schedule.Spec.MatchLabels, action.Replicas, false),
+func (r *ClusterScheduleReconciler) configMapForSchedule(schedule *podv1alpha1.ClusterSchedule, action podv1alpha1.ScheduleAction) (*corev1.ConfigMap, error) {
+	buf := new(bytes.Buffer)
+	data := scriptData[*podv1alpha1.ClusterSchedule]{schedule, action}
+	if data.Schedule.Spec.MatchType == podv1alpha1.Deployment {
+		err := r.Templates.ExecuteTemplate(buf, "deployment_namespaced.sh", data)
+		if err != nil {
+			return nil, err
 		}
-	} else if schedule.Spec.MatchType == podv1alpha1.StatefulSet {
-		container = corev1.Container{
-			Name:  "pod-scheduler-statefulset",
-			Image: r.JobImage,
-			Args:  GenerateArgs("statefulset", schedule.Spec.MatchLabels, action.Replicas, false),
+	} else if data.Schedule.Spec.MatchType == podv1alpha1.StatefulSet {
+		err := r.Templates.ExecuteTemplate(buf, "statefulset_namespaced.sh", data)
+		if err != nil {
+			return nil, err
+		}
+	} else if data.Schedule.Spec.MatchType == podv1alpha1.HorizontalPodAutoscaler {
+		err := r.Templates.ExecuteTemplate(buf, "hpa_namespaced.sh", data)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		return nil, fmt.Errorf("match type not supported")
 	}
 
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetScheduleActionName(data.Schedule.Name, data.Action.Name),
+			Namespace: r.Namespace,
+			Annotations: map[string]string{
+				"pod-scheduler.loop.dev/replicas":       ReplicasForLabels(data.Action),
+				"pod-scheduler.loop.dev/labelSelectors": ConvertMapToString(data.Schedule.Spec.MatchLabels),
+				"pod-scheduler.loop.dev/resource":       data.Schedule.Spec.MatchType.String(),
+				"pod-scheduler.loop.dev/namespaces":     strings.Join(data.Schedule.Spec.Namespaces, ","),
+			},
+		},
+		Data: map[string]string{
+			scriptFileName: buf.String(),
+		},
+	}
+	controllerutil.SetControllerReference(data.Schedule, cm, r.Scheme)
+	return cm, nil
+}
+
+func (r *ClusterScheduleReconciler) cronJobForSchedule(schedule *podv1alpha1.ClusterSchedule, action podv1alpha1.ScheduleAction, configMap *corev1.ConfigMap) (*batchv1.CronJob, error) {
+	jobName := GetScheduleActionName(schedule.Name, action.Name)
+	volumeMode := new(int32)
+	*volumeMode = 0555 // rxrxrx
 	job := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: r.Namespace,
-			Annotations: map[string]string{
-				"pod-scheduler.loop.dev/replicas":       strconv.Itoa(action.Replicas),
-				"pod-scheduler.loop.dev/labelSelectors": ConvertMapToString(schedule.Spec.MatchLabels),
-				"pod-scheduler.loop.dev/resource":       schedule.Spec.MatchType.String(),
-			},
 		},
 		Spec: batchv1.CronJobSpec{
 			ConcurrencyPolicy: "Replace",
@@ -205,7 +279,37 @@ func (r *ClusterScheduleReconciler) cronJobForSchedule(schedule *podv1alpha1.Clu
 							RestartPolicy:      corev1.RestartPolicyNever,
 							ServiceAccountName: r.ServiceAccount,
 							Containers: []corev1.Container{
-								container,
+								{
+									Name:    "pod-scheduler",
+									Image:   r.JobImage,
+									Command: []string{"sh", "-c", "./" + scriptFileName},
+									VolumeMounts: []corev1.VolumeMount{
+										{
+											Name:      "script-vol",
+											MountPath: "/" + scriptFileName,
+											SubPath:   scriptFileName,
+										},
+									},
+								},
+							},
+							Volumes: []corev1.Volume{
+								{
+									Name: "script-vol",
+									VolumeSource: corev1.VolumeSource{
+										ConfigMap: &corev1.ConfigMapVolumeSource{
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: configMap.Name,
+											},
+											Items: []corev1.KeyToPath{
+												{
+													Key:  scriptFileName,
+													Path: scriptFileName,
+													Mode: volumeMode,
+												},
+											},
+										},
+									},
+								},
 							},
 						},
 					},

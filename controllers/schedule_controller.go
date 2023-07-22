@@ -45,11 +45,6 @@ type ScheduleReconciler struct {
 	Templates       *template.Template
 }
 
-type ScheduleResources struct {
-	cronjob   *batchv1.CronJob
-	configmap *corev1.ConfigMap
-}
-
 //+kubebuilder:rbac:groups=pod.loop.dev,resources=schedules,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=pod.loop.dev,resources=schedules/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=pod.loop.dev,resources=schedules/finalizers,verbs=update
@@ -282,16 +277,9 @@ func (r *ScheduleReconciler) createCronJob(ctx context.Context, schedule *podv1a
 	}, nil
 }
 
-type scriptData struct {
-	Schedule *podv1alpha1.Schedule
-	Action   podv1alpha1.ScheduleAction
-}
-
-const scriptFileName = "script.sh"
-
 func (r *ScheduleReconciler) configMapForSchedule(schedule *podv1alpha1.Schedule, action podv1alpha1.ScheduleAction) (*corev1.ConfigMap, error) {
 	buf := new(bytes.Buffer)
-	data := scriptData{schedule, action}
+	data := scriptData[*podv1alpha1.Schedule]{schedule, action}
 	if data.Schedule.Spec.MatchType == podv1alpha1.Deployment {
 		err := r.Templates.ExecuteTemplate(buf, "deployment.sh", data)
 		if err != nil {

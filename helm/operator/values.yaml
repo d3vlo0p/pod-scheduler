@@ -11,6 +11,7 @@ image:
   tag: ""
 
 jobImage: bitnami/kubectl:latest
+watchNamespaces: ""
 
 imagePullSecrets: []
 nameOverride: ""

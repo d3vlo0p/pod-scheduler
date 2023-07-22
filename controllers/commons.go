@@ -37,17 +37,6 @@ func ConvertMapToString(m map[string]string) string {
 	return strings.Join(ra, ",")
 }
 
-func GenerateArgs(resourceType string, labels map[string]string, replicas int, global bool) []string {
-	args := []string{"scale", resourceType, fmt.Sprintf("--replicas=%d", replicas)}
-	for k, v := range labels {
-		args = append(args, "-l", fmt.Sprintf("%s=%s", k, v))
-	}
-	if global {
-		args = append(args, "-A")
-	}
-	return args
-}
-
 func GenerateLabelsForApp(name string) map[string]string {
 	return map[string]string{"cr_name": name, "app": "pod-scheduler", "cr_type": "schedule"}
 }

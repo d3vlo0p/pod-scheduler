@@ -44,6 +44,10 @@ spec:
               value: {{ .Values.jobImage | quote }}
             - name: "CLUSTER_ROLE_NAME"
               value: {{ include "operator.fullname" . }}-jobs
+            - name: "OPERATOR_NAMESPACE"
+              value: {{ .Release.Namespace }}
+            - name: "OPERATOR_SERVICE_ACCOUNT_NAME"
+              value: {{ include "operator.serviceAccountName" . }}
           ports:
             - name: metrics
               containerPort: 8080

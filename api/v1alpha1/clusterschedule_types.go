@@ -33,6 +33,7 @@ type ClusterScheduleSpec struct {
 	MatchLabels map[string]string `json:"matchLabels"`
 	Namespaces  []string          `json:"namespaces"`
 	Schedules   []ScheduleAction  `json:"schedules"`
+	Enabled     *bool             `json:"enabled,omitempty"`
 }
 
 // ClusterScheduleStatus defines the observed state of ClusterSchedule
@@ -41,6 +42,7 @@ type ClusterScheduleStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	LastRunTime metav1.Time `json:"lastRunTime"`
 	CronJobs    []CronJob   `json:"cronJobs"`
+	// Conditions  []metav1.Condition `json:"conditions"`
 }
 
 //+kubebuilder:object:root=true

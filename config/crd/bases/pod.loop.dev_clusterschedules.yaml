@@ -35,6 +35,8 @@ spec:
           spec:
             description: ClusterScheduleSpec defines the desired state of ClusterSchedule
             properties:
+              enabled:
+                type: boolean
               matchLabels:
                 additionalProperties:
                   type: string
@@ -52,6 +54,8 @@ spec:
                   properties:
                     cron:
                       type: string
+                    enabled:
+                      type: boolean
                     maxReplicas:
                       type: integer
                     minReplicas:

@@ -35,6 +35,8 @@ spec:
           spec:
             description: ScheduleSpec defines the desired state of Schedule
             properties:
+              enabled:
+                type: boolean
               matchLabels:
                 additionalProperties:
                   type: string
@@ -48,6 +50,8 @@ spec:
                   properties:
                     cron:
                       type: string
+                    enabled:
+                      type: boolean
                     maxReplicas:
                       type: integer
                     minReplicas:

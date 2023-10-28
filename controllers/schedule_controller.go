@@ -145,51 +145,55 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	instance.Status.CronJobs = []podv1alpha1.CronJob{}
 	// verify if the cronjobs are matching the schedule spec.
 	// if not create a new one or modify the existing one
-	for _, scheduleAction := range instance.Spec.Schedules {
-		var resource ScheduleResources
-		jobName := GetScheduleActionName(instance.Name, scheduleAction.Name)
-		cmcj, ok := oldResouces[jobName]
-		if !ok {
-			logger.Info("New Schedule action found, creating new cronjob & config map")
-			resource, err = r.createCronJob(ctx, instance, scheduleAction, serviceAccount)
-			if err != nil {
-				logger.Info("Failed to create Schedule CronJob. Re-running reconcile.")
-				return ctrl.Result{}, err
-			}
-		} else {
-			// cronjob exist, remove the cronjob from the map to check later if there are job left to remove
-			delete(oldResouces, jobName)
-			if cmcj.cronjob.Spec.Schedule != scheduleAction.Cron ||
-				cmcj.configmap.Annotations["pod-scheduler.loop.dev/replicas"] != ReplicasForLabels(scheduleAction) ||
-				cmcj.configmap.Annotations["pod-scheduler.loop.dev/labelSelectors"] != ConvertMapToString(instance.Spec.MatchLabels) ||
-				cmcj.configmap.Annotations["pod-scheduler.loop.dev/resource"] != instance.Spec.MatchType.String() {
-				// configuration changed, replace cronjob & config map
-				logger.Info("Diff found, replacing cronjob & config map")
-				err := r.Delete(ctx, cmcj.cronjob, &client.DeleteOptions{})
-				if err != nil {
-					logger.Info("Failed to delete Schedule cronjob")
-					return ctrl.Result{}, err
+	if instance.Spec.Enabled == nil || *instance.Spec.Enabled {
+		for _, scheduleAction := range instance.Spec.Schedules {
+			if scheduleAction.Enabled == nil || *scheduleAction.Enabled {
+				var resource ScheduleResources
+				jobName := GetScheduleActionName(instance.Name, scheduleAction.Name)
+				cmcj, ok := oldResouces[jobName]
+				if !ok {
+					logger.Info("New Schedule action found, creating new cronjob & config map")
+					resource, err = r.createCronJob(ctx, instance, scheduleAction, serviceAccount)
+					if err != nil {
+						logger.Info("Failed to create Schedule CronJob. Re-running reconcile.")
+						return ctrl.Result{}, err
+					}
+				} else {
+					// cronjob exist, remove the cronjob from the map to check later if there are job left to remove
+					delete(oldResouces, jobName)
+					if cmcj.cronjob.Spec.Schedule != scheduleAction.Cron ||
+						cmcj.configmap.Annotations["pod-scheduler.loop.dev/replicas"] != ReplicasForLabels(scheduleAction) ||
+						cmcj.configmap.Annotations["pod-scheduler.loop.dev/labelSelectors"] != ConvertMapToString(instance.Spec.MatchLabels) ||
+						cmcj.configmap.Annotations["pod-scheduler.loop.dev/resource"] != instance.Spec.MatchType.String() {
+						// configuration changed, replace cronjob & config map
+						logger.Info("Diff found, replacing cronjob & config map")
+						err := r.Delete(ctx, cmcj.cronjob, &client.DeleteOptions{})
+						if err != nil {
+							logger.Info("Failed to delete Schedule cronjob")
+							return ctrl.Result{}, err
+						}
+						err = r.Delete(ctx, cmcj.configmap, &client.DeleteOptions{})
+						if err != nil {
+							logger.Info("Failed to delete Schedule cronjob configmap")
+							return ctrl.Result{}, err
+						}
+						resource, err = r.createCronJob(ctx, instance, scheduleAction, serviceAccount)
+						if err != nil {
+							logger.Info("Failed to create Schedule CronJob. Re-running reconcile.")
+							return ctrl.Result{}, err
+						}
+					} else {
+						logger.Info("No diff found, keeping existing cronjob & config map")
+						resource = cmcj
+					}
 				}
-				err = r.Delete(ctx, cmcj.configmap, &client.DeleteOptions{})
-				if err != nil {
-					logger.Info("Failed to delete Schedule cronjob configmap")
-					return ctrl.Result{}, err
-				}
-				resource, err = r.createCronJob(ctx, instance, scheduleAction, serviceAccount)
-				if err != nil {
-					logger.Info("Failed to create Schedule CronJob. Re-running reconcile.")
-					return ctrl.Result{}, err
-				}
-			} else {
-				logger.Info("No diff found, keeping existing cronjob & config map")
-				resource = cmcj
+				instance.Status.CronJobs = append(instance.Status.CronJobs, podv1alpha1.CronJob{
+					Name:      jobName,
+					Job:       resource.cronjob.Name,
+					ConfigMap: resource.configmap.Name,
+				})
 			}
 		}
-		instance.Status.CronJobs = append(instance.Status.CronJobs, podv1alpha1.CronJob{
-			Name:      jobName,
-			Job:       resource.cronjob.Name,
-			ConfigMap: resource.configmap.Name,
-		})
 	}
 
 	// check if some action has been removed from the schedule spec, but cronjob is still active then remove it

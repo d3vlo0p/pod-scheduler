@@ -32,6 +32,7 @@ type ScheduleSpec struct {
 	MatchType   ResourceType      `json:"matchType"`
 	MatchLabels map[string]string `json:"matchLabels"`
 	Schedules   []ScheduleAction  `json:"schedules"`
+	Enabled     *bool             `json:"enabled,omitempty"`
 }
 
 // ScheduleStatus defines the observed state of Schedule
@@ -40,6 +41,7 @@ type ScheduleStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	LastRunTime metav1.Time `json:"lastRunTime"`
 	CronJobs    []CronJob   `json:"cronJobs"`
+	// Conditions  []metav1.Condition `json:"conditions"`
 }
 
 //+kubebuilder:object:root=true

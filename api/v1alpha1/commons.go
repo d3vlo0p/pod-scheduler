@@ -6,6 +6,7 @@ type ScheduleAction struct {
 	Replicas    int    `json:"replicas,omitempty"`
 	MinReplicas int    `json:"minReplicas,omitempty"`
 	MaxReplicas int    `json:"maxReplicas,omitempty"`
+	Enabled     *bool  `json:"enabled,omitempty"`
 }
 
 type CronJob struct {
